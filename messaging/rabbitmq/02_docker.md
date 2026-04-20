@@ -1,6 +1,6 @@
 # RabbitMQ — Docker
 
-## docker run — быстро поднять для теста
+## docker run — quick start for testing
 
 ```bash
 docker run -d \
@@ -10,19 +10,19 @@ docker run -d \
   rabbitmq:4.1-management
 ```
 
-| Порт | Назначение |
+| Port | Purpose |
 |---|---|
-| `5672` | AMQP — подключение сервисов |
+| `5672` | AMQP — application connections |
 | `15672` | Management UI |
 
-> После запуска UI доступен на `http://localhost:15672`  
-> Дефолтные креды: `guest` / `guest` (работают только с localhost)
+> After starting, UI is available at `http://localhost:15672`  
+> Default credentials: `guest` / `guest` (only work from localhost)
 
 ---
 
-## docker-compose — постоянный запуск
+## docker-compose — persistent setup
 
-### Минимальный вариант
+### Minimal version
 
 ```yaml
 services:
@@ -39,9 +39,9 @@ volumes:
   rabbitmq_data:
 ```
 
-### С переменными окружения через .env
+### With environment variables via .env
 
-`.env` файл:
+`.env` file:
 ```env
 RABBITMQ_USER=admin
 RABBITMQ_PASS=StrongPassword123
@@ -77,50 +77,50 @@ volumes:
 
 ---
 
-## Volumes — как не потерять данные
+## Volumes — how to persist data
 
-Без volume при `docker rm` все очереди и сообщения удалятся.
+Without a volume, all queues and messages are lost on `docker rm`.
 
 ```yaml
 volumes:
-  - rabbitmq_data:/var/lib/rabbitmq  # очереди, сообщения, пользователи
+  - rabbitmq_data:/var/lib/rabbitmq  # queues, messages, users
 ```
 
-Проверить что volume создан:
+Verify volume was created:
 ```bash
 docker volume ls | grep rabbitmq
 ```
 
 ---
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | Что делает | Дефолт |
+| Variable | What it does | Default |
 |---|---|---|
-| `RABBITMQ_DEFAULT_USER` | Имя пользователя при старте | `guest` |
-| `RABBITMQ_DEFAULT_PASS` | Пароль пользователя при старте | `guest` |
-| `RABBITMQ_DEFAULT_VHOST` | Дефолтный vhost | `/` |
-| `RABBITMQ_ERLANG_COOKIE` | Секрет для кластеризации — должен совпадать на всех нодах | случайный |
+| `RABBITMQ_DEFAULT_USER` | Username on first start | `guest` |
+| `RABBITMQ_DEFAULT_PASS` | Password on first start | `guest` |
+| `RABBITMQ_DEFAULT_VHOST` | Default vhost | `/` |
+| `RABBITMQ_ERLANG_COOKIE` | Clustering secret — must match on all nodes | random |
 
-> `RABBITMQ_DEFAULT_USER` и `RABBITMQ_DEFAULT_PASS` применяются **только при первом запуске**.  
-> Если volume уже существует — переменные игнорируются.
+> `RABBITMQ_DEFAULT_USER` and `RABBITMQ_DEFAULT_PASS` are applied **on first start only**.  
+> If a volume already exists — these variables are ignored.
 
 ---
 
 ## Healthcheck
 
-Проверить что RabbitMQ живой:
+Check that RabbitMQ is alive:
 
 ```bash
 docker exec rabbitmq rabbitmq-diagnostics ping
 ```
 
-Ожидаемый ответ:
+Expected response:
 ```
 Ping succeeded if node is up
 ```
 
-Проверить статус всех компонентов:
+Check status of all components:
 ```bash
 docker exec rabbitmq rabbitmq-diagnostics status
 ```

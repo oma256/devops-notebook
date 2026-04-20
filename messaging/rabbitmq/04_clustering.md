@@ -1,8 +1,8 @@
-# RabbitMQ — Кластеризация
+# RabbitMQ — Clustering
 
-## Как устроен кластер
+## How a cluster works
 
-В отличие от PostgreSQL + Patroni где есть один primary и остальные replica — в RabbitMQ **все ноды равноправны**. Любая нода принимает подключения и обрабатывает сообщения.
+Unlike PostgreSQL + Patroni where there is one primary and the rest are replicas — in RabbitMQ **all nodes are equal**. Any node accepts connections and processes messages.
 
 ```
         [Load Balancer / HAProxy]
@@ -15,23 +15,23 @@
 
 | | PostgreSQL + Patroni | RabbitMQ Cluster |
 |---|---|---|
-| Тип | Active/Passive | Active/Active |
-| Failover | Через etcd/consul | Встроенный |
-| Общий секрет | — | Erlang Cookie |
-| Минимум нод | 2 | 3 (для кворума) |
+| Type | Active/Passive | Active/Active |
+| Failover | Via etcd/consul | Built-in |
+| Shared secret | — | Erlang Cookie |
+| Minimum nodes | 2 | 3 (for quorum) |
 
-> **Erlang Cookie** — общий секрет на всех нодах. Без одинакового cookie ноды не объединятся в кластер.
+> **Erlang Cookie** — a shared secret on all nodes. Without the same cookie nodes will not join the cluster.
 
 ---
 
-## Quorum Queues — почему важно
+## Quorum Queues — why it matters
 
-По умолчанию очередь живёт только на одной ноде. Если нода упала — очередь недоступна.
+By default a queue lives on only one node. If that node goes down — the queue is unavailable.
 
-**Quorum Queues** решают это — очередь реплицируется на большинство нод (кворум). Используют Raft-консенсус, аналогия с Patroni ближе всего именно здесь.
+**Quorum Queues** solve this — the queue is replicated to a majority of nodes (quorum). They use Raft consensus, which is the closest analogy to Patroni.
 
 ```python
-# При создании очереди указать тип quorum
+# Specify queue type as quorum when declaring
 channel.queue_declare(
     queue='my-queue',
     arguments={'x-queue-type': 'quorum'}
@@ -40,40 +40,40 @@ channel.queue_declare(
 
 | | Classic Queue | Quorum Queue |
 |---|---|---|
-| Репликация | Нет (по умолчанию) | Да (Raft) |
-| Гарантия доставки | Слабая | Сильная |
-| Производительность | Выше | Немного ниже |
-| Рекомендуется | Для dev/test | Для production |
+| Replication | No (by default) | Yes (Raft) |
+| Delivery guarantee | Weak | Strong |
+| Performance | Higher | Slightly lower |
+| Recommended for | Dev/Test | Production |
 
 ---
 
-## Вариант 1 — Linux (bare metal)
+## Option 1 — Linux (bare metal)
 
-На каждой ноде установлен RabbitMQ. Одинаковый Erlang Cookie на всех серверах.
+RabbitMQ is installed on each node. The same Erlang Cookie must be set on all servers.
 
 ```bash
-# На всех нодах — задать одинаковый cookie
+# Set the same cookie on all nodes
 echo "secret-erlang-cookie" > /var/lib/rabbitmq/.erlang.cookie
 chmod 400 /var/lib/rabbitmq/.erlang.cookie
 chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie
 
-# Перезапустить RabbitMQ на всех нодах
+# Restart RabbitMQ on all nodes
 systemctl restart rabbitmq-server
 
-# На node2 и node3 — присоединиться к node1
+# On node2 and node3 — join the cluster
 rabbitmqctl stop_app
 rabbitmqctl join_cluster rabbit@node1
 rabbitmqctl start_app
 
-# Проверить кластер
+# Verify cluster
 rabbitmqctl cluster_status
 ```
 
 ---
 
-## Вариант 2 — Docker Compose
+## Option 2 — Docker Compose
 
-Три контейнера с одинаковым `RABBITMQ_ERLANG_COOKIE`.
+Three containers with the same `RABBITMQ_ERLANG_COOKIE`.
 
 `.env`:
 ```env
@@ -134,7 +134,7 @@ volumes:
   rabbitmq3_data:
 ```
 
-Присоединить node2 и node3 к кластеру:
+Join node2 and node3 to the cluster:
 ```bash
 # node2
 docker exec rabbitmq2 rabbitmqctl stop_app
@@ -146,22 +146,22 @@ docker exec rabbitmq3 rabbitmqctl stop_app
 docker exec rabbitmq3 rabbitmqctl join_cluster rabbit@rabbitmq1
 docker exec rabbitmq3 rabbitmqctl start_app
 
-# Проверить
+# Verify
 docker exec rabbitmq1 rabbitmqctl cluster_status
 ```
 
 ---
 
-## Вариант 3 — Kubernetes (Cluster Operator)
+## Option 3 — Kubernetes (Cluster Operator)
 
-Самый простой способ — RabbitMQ Cluster Operator сам управляет кластером и failover.
+The easiest approach — RabbitMQ Cluster Operator manages the cluster and failover automatically.
 
-Установить оператор:
+Install the operator:
 ```bash
 kubectl apply -f https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml
 ```
 
-Создать кластер (`rabbitmq-cluster.yaml`):
+Create a cluster (`rabbitmq-cluster.yaml`):
 ```yaml
 apiVersion: rabbitmq.com/v1beta1
 kind: RabbitmqCluster
@@ -186,12 +186,12 @@ spec:
 ```bash
 kubectl apply -f rabbitmq-cluster.yaml
 
-# Проверить
+# Verify
 kubectl get pods -n messaging
 kubectl get rabbitmqcluster -n messaging
 ```
 
-Получить креды:
+Get credentials:
 ```bash
 kubectl get secret rabbitmq-cluster-default-user -n messaging -o jsonpath='{.data.username}' | base64 --decode
 kubectl get secret rabbitmq-cluster-default-user -n messaging -o jsonpath='{.data.password}' | base64 --decode
@@ -199,15 +199,12 @@ kubectl get secret rabbitmq-cluster-default-user -n messaging -o jsonpath='{.dat
 
 ---
 
-## Полезные команды для кластера
+## Useful cluster commands
 
 ```bash
-# Статус кластера
+# Cluster status
 rabbitmqctl cluster_status
 
-# Список нод
-rabbitmqctl cluster_status | grep nodes
-
-# Вывести ноду из кластера (если нода уже недоступна)
+# Remove a node from cluster (if node is already unreachable)
 rabbitmqctl forget_cluster_node rabbit@node2
 ```

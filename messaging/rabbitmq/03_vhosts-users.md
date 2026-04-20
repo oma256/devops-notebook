@@ -1,60 +1,60 @@
-# RabbitMQ — Vhosts и пользователи
+# RabbitMQ — Vhosts and Users
 
-## Что такое Vhost
+## What is a Vhost
 
-Vhost (Virtual Host) — изолированное пространство внутри RabbitMQ. Аналогия: как отдельная база данных в PostgreSQL.
+Vhost (Virtual Host) — an isolated namespace inside RabbitMQ. Think of it like a separate database in PostgreSQL.
 
-Каждый vhost имеет свои:
-- Очереди (Queues)
-- Exchange'ы
+Each vhost has its own:
+- Queues
+- Exchanges
 - Bindings
 
-Пользователи из одного vhost **не видят** другой vhost.
+Users from one vhost **cannot see** another vhost.
 
 ---
 
-## Права — что означают три `".*"`
+## Permissions — what the three `".*"` mean
 
-При выдаче прав указываются три параметра:
+When granting permissions, three parameters are specified:
 
-| Параметр | Что разрешает |
+| Parameter | What it allows |
 |---|---|
-| **configure** `".*"` | Создавать/удалять очереди и exchange'ы |
-| **write** `".*"` | Публиковать сообщения |
-| **read** `".*"` | Читать сообщения из очередей |
+| **configure** `".*"` | Create/delete queues and exchanges |
+| **write** `".*"` | Publish messages |
+| **read** `".*"` | Consume messages from queues |
 
 ---
 
-## Теги для Management UI
+## Tags for Management UI
 
-По умолчанию новый пользователь **не может войти** в UI — нужен тег.
+By default a new user **cannot log in** to the UI — a tag is required.
 
-| Тег | Что видит в UI |
+| Tag | What they see in UI |
 |---|---|
-| `management` | Только свой vhost — для команд |
-| `monitoring` | Все vhost'ы, но без изменений |
-| `administrator` | Полный доступ — только для админа |
+| `management` | Their vhost only — for teams |
+| `monitoring` | All vhosts, read-only |
+| `administrator` | Full access — admins only |
 
 ---
 
-## Вариант 1 — Linux (bare metal)
+## Option 1 — Linux (bare metal)
 
-RabbitMQ установлен напрямую на сервер, `rabbitmqctl` доступен глобально.
+RabbitMQ is installed directly on the server, `rabbitmqctl` is available globally.
 
 ```bash
-# Создать vhost
+# Create vhost
 rabbitmqctl add_vhost /bakai-bnpl
 
-# Создать пользователя
+# Create user
 rabbitmqctl add_user bakai_bnpl_user StrongPassword123
 
-# Выдать права
+# Grant permissions
 rabbitmqctl set_permissions -p /bakai-bnpl bakai_bnpl_user ".*" ".*" ".*"
 
-# Дать доступ в UI
+# Grant UI access
 rabbitmqctl set_user_tags bakai_bnpl_user management
 
-# Проверка
+# Verify
 rabbitmqctl list_vhosts
 rabbitmqctl list_users
 rabbitmqctl list_permissions -p /bakai-bnpl
@@ -62,64 +62,64 @@ rabbitmqctl list_permissions -p /bakai-bnpl
 
 ---
 
-## Вариант 2 — Docker
+## Option 2 — Docker
 
-RabbitMQ запущен в контейнере, команды выполняются через `docker exec`.
+RabbitMQ is running in a container, commands are executed via `docker exec`.
 
 ```bash
-# Создать vhost
+# Create vhost
 docker exec rabbitmq rabbitmqctl add_vhost /bakai-bnpl
 
-# Создать пользователя
+# Create user
 docker exec rabbitmq rabbitmqctl add_user bakai_bnpl_user StrongPassword123
 
-# Выдать права
+# Grant permissions
 docker exec rabbitmq rabbitmqctl set_permissions -p /bakai-bnpl bakai_bnpl_user ".*" ".*" ".*"
 
-# Дать доступ в UI
+# Grant UI access
 docker exec rabbitmq rabbitmqctl set_user_tags bakai_bnpl_user management
 
-# Проверка
+# Verify
 docker exec rabbitmq rabbitmqctl list_vhosts
 docker exec rabbitmq rabbitmqctl list_users
 docker exec rabbitmq rabbitmqctl list_permissions -p /bakai-bnpl
 ```
 
-> `rabbitmq` — имя контейнера. Проверить: `docker ps`
+> `rabbitmq` is the container name. Check with: `docker ps`
 
 ---
 
-## Вариант 3 — Kubernetes
+## Option 3 — Kubernetes
 
-RabbitMQ запущен в поде, команды выполняются через `kubectl exec`.
+RabbitMQ is running in a pod, commands are executed via `kubectl exec`.
 
 ```bash
-# Узнать имя пода
+# Get pod name
 kubectl get pods -n <namespace> | grep rabbitmq
 
-# Создать vhost
+# Create vhost
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl add_vhost /bakai-bnpl
 
-# Создать пользователя
+# Create user
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl add_user bakai_bnpl_user StrongPassword123
 
-# Выдать права
+# Grant permissions
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl set_permissions -p /bakai-bnpl bakai_bnpl_user ".*" ".*" ".*"
 
-# Дать доступ в UI
+# Grant UI access
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl set_user_tags bakai_bnpl_user management
 
-# Проверка
+# Verify
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl list_vhosts
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl list_users
 kubectl exec -n <namespace> <pod-name> -- rabbitmqctl list_permissions -p /bakai-bnpl
 ```
 
-> Если используется RabbitMQ Cluster Operator — команды выполняются на любом поде кластера.
+> If using RabbitMQ Cluster Operator — commands can be run on any pod in the cluster.
 
 ---
 
-## Генерация надёжного пароля
+## Generate a strong password
 
 ```bash
 openssl rand -base64 16

@@ -1,41 +1,41 @@
-# RabbitMQ — Мониторинг
+# RabbitMQ — Monitoring
 
-## Что мониторить
+## What to monitor
 
-| Метрика | Почему важно |
+| Metric | Why it matters |
 |---|---|
-| **Queue depth** | Очередь растёт → consumer не справляется |
-| **Message rate** | Сколько сообщений в секунду publish/consume |
-| **Unacked messages** | Сообщения взяты но не подтверждены — утечка? |
-| **Consumer count** | Ноль consumer'ов → сообщения копятся |
-| **Memory usage** | RabbitMQ начнёт блокировать publisher'ов при 40% RAM |
-| **Disk space** | При нехватке диска RabbitMQ останавливает запись |
-| **Connection count** | Резкий рост — проблема с reconnect логикой |
+| **Queue depth** | Queue is growing → consumer can't keep up |
+| **Message rate** | Messages published/consumed per second |
+| **Unacked messages** | Messages taken but not acknowledged — potential leak |
+| **Consumer count** | Zero consumers → messages are piling up |
+| **Memory usage** | RabbitMQ will block publishers at 40% RAM |
+| **Disk space** | RabbitMQ stops writing when disk is full |
+| **Connection count** | Sudden spike — reconnect logic issue |
 
 ---
 
-## Встроенный Management UI
+## Built-in Management UI
 
-Доступен на порту `15672`. Показывает всё в реальном времени.
+Available on port `15672`. Shows everything in real time.
 
-### Где смотреть
+### Where to look
 
-**Overview** — общее состояние, memory/disk алерты, общий message rate
+**Overview** — general health, memory/disk alerts, total message rate
 
-**Queues** — самое важное:
-- `Ready` — сообщения ждут consumer'а
-- `Unacked` — взяты consumer'ом но не подтверждены
-- `Total` — сумма
+**Queues** — most important:
+- `Ready` — messages waiting for a consumer
+- `Unacked` — taken by consumer but not acknowledged
+- `Total` — sum of both
 
-**Connections / Channels** — сколько сервисов подключено
+**Connections / Channels** — how many services are connected
 
-> ⚠️ Если `Ready` постоянно растёт — consumer не справляется с нагрузкой
+> ⚠️ If `Ready` keeps growing — consumer cannot handle the load
 
 ---
 
 ## Prometheus + Grafana
 
-### Шаг 1 — Включить Prometheus plugin
+### Step 1 — Enable Prometheus plugin
 
 **Linux:**
 ```bash
@@ -47,13 +47,11 @@ rabbitmq-plugins enable rabbitmq_prometheus
 docker exec rabbitmq rabbitmq-plugins enable rabbitmq_prometheus
 ```
 
-**docker-compose** (автоматически при старте):
+**docker-compose** (automatically on start):
 ```yaml
 services:
   rabbitmq:
     image: rabbitmq:4.1-management
-    environment:
-      RABBITMQ_ENABLED_PLUGINS_FILE: /etc/rabbitmq/enabled_plugins
     volumes:
       - ./enabled_plugins:/etc/rabbitmq/enabled_plugins
 ```
@@ -63,14 +61,14 @@ services:
 [rabbitmq_management,rabbitmq_prometheus].
 ```
 
-После включения метрики доступны на:
+After enabling, metrics are available at:
 ```
 http://<host>:15692/metrics
 ```
 
 ---
 
-### Шаг 2 — Настроить scrape в Prometheus
+### Step 2 — Configure scrape in Prometheus
 
 `prometheus.yml`:
 ```yaml
@@ -83,23 +81,23 @@ scrape_configs:
 
 ---
 
-### Шаг 3 — Дашборд в Grafana
+### Step 3 — Grafana Dashboard
 
-Готовый официальный дашборд от RabbitMQ team:
+Official dashboard from the RabbitMQ team:
 
 ```
 Grafana → Import → ID: 10991
 ```
 
-Показывает:
-- Queue depth по каждой очереди
+Shows:
+- Queue depth per queue
 - Message rates (publish / deliver / ack)
-- Memory и disk usage
-- Connection и channel count
+- Memory and disk usage
+- Connection and channel count
 
 ---
 
-## Алерты — на что ставить
+## Alerts — what to set up
 
 ```yaml
 # prometheus alerting rules
@@ -107,7 +105,7 @@ groups:
   - name: rabbitmq
     rules:
 
-      # Очередь растёт дольше 5 минут
+      # Queue growing for more than 5 minutes
       - alert: RabbitMQQueueGrowing
         expr: rabbitmq_queue_messages_ready > 1000
         for: 5m
@@ -116,7 +114,7 @@ groups:
         annotations:
           summary: "Queue {{ $labels.queue }} has too many messages"
 
-      # Нет consumer'ов на очереди
+      # No consumers on a queue
       - alert: RabbitMQNoConsumers
         expr: rabbitmq_queue_consumers == 0
         for: 1m
@@ -125,7 +123,7 @@ groups:
         annotations:
           summary: "Queue {{ $labels.queue }} has no consumers"
 
-      # Память выше 80%
+      # Memory above 80%
       - alert: RabbitMQHighMemory
         expr: rabbitmq_process_resident_memory_bytes / rabbitmq_resident_memory_limit_bytes > 0.8
         for: 2m
@@ -137,18 +135,18 @@ groups:
 
 ---
 
-## Полезные команды для быстрой диагностики
+## Useful commands for quick diagnostics
 
 ```bash
-# Общий статус
+# General status
 docker exec rabbitmq rabbitmq-diagnostics status
 
-# Список очередей с количеством сообщений
+# List queues with message counts
 docker exec rabbitmq rabbitmqctl list_queues name messages messages_ready messages_unacknowledged consumers
 
-# Использование памяти
+# Memory breakdown
 docker exec rabbitmq rabbitmq-diagnostics memory_breakdown
 
-# Проверить что нода живая
+# Check node is alive
 docker exec rabbitmq rabbitmq-diagnostics ping
 ```

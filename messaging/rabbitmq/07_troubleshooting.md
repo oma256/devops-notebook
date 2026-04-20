@@ -1,32 +1,32 @@
 # RabbitMQ — Troubleshooting
 
-## Шаблон записи
+## Entry template
 
-**Проблема:**  
-**Симптом:**  
-**Причина:**  
-**Решение:**  
+**Problem:**  
+**Symptom:**  
+**Cause:**  
+**Solution:**  
 
 ---
 
-## Записи
+## Entries
 
-### 001 — Пользователь не может войти в Management UI
+### 001 — User cannot log in to Management UI
 
-**Проблема:** Создали нового пользователя и передали команде креды, но они не могут войти в UI на порту 15672.
+**Problem:** Created a new user and shared the credentials with the team, but they cannot log in to the UI on port 15672.
 
-**Симптом:** Страница логина возвращает ошибку `Login failed` при правильном логине и пароле.
+**Symptom:** The login page returns `Login failed` even with the correct username and password.
 
-**Причина:** Новый пользователь создаётся без тегов. Без тега `management` RabbitMQ не разрешает вход в UI, даже если пользователь существует и пароль верный.
+**Cause:** A new user is created without any tags. Without the `management` tag RabbitMQ denies access to the UI, even if the user exists and the password is correct.
 
-**Решение:**
+**Solution:**
 ```bash
 docker exec rabbitmq rabbitmqctl set_user_tags <username> management
 ```
 
-Проверить что тег выставлен:
+Verify the tag is set:
 ```bash
 docker exec rabbitmq rabbitmqctl list_users
 # user         tags
-# myuser       [management]  ← должно быть так
+# myuser       [management]  ← should look like this
 ```

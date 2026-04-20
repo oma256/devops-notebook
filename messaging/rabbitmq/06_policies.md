@@ -1,26 +1,26 @@
 # RabbitMQ — Policies
 
-## Что такое Policy
+## What is a Policy
 
-Policy — правило которое применяется к очередям или exchange'ам. Позволяет настроить поведение очереди без изменения кода приложения.
+A Policy is a rule applied to queues or exchanges. It allows you to configure queue behavior without changing application code.
 
-Применяется по **паттерну имени очереди** — можно настроить сразу для всех очередей или только для конкретных.
+Policies are applied by **queue name pattern** — you can configure all queues at once or only specific ones.
 
 ---
 
-## TTL — автоудаление старых сообщений
+## TTL — auto-delete old messages
 
-Сообщение живёт в очереди не дольше указанного времени. Если consumer не успел забрать — сообщение удаляется (или уходит в DLQ).
+A message lives in the queue no longer than the specified time. If the consumer didn't pick it up in time — the message is deleted (or sent to DLQ).
 
-**Через CLI:**
+**Via CLI:**
 ```bash
-# Сообщения живут максимум 1 час (3600000 мс)
+# Messages live for a maximum of 1 hour (3600000 ms)
 docker exec rabbitmq rabbitmqctl set_policy ttl-policy ".*" \
   '{"message-ttl": 3600000}' \
   --apply-to queues
 ```
 
-**Через UI:**
+**Via UI:**
 ```
 Admin → Policies → Add policy
 Name:       ttl-policy
@@ -31,19 +31,19 @@ Definition: message-ttl = 3600000
 
 ---
 
-## Max Length — ограничение размера очереди
+## Max Length — limit queue size
 
-Ограничивает максимальное количество сообщений в очереди. Когда лимит достигнут — старые сообщения удаляются (или уходят в DLQ).
+Limits the maximum number of messages in a queue. When the limit is reached — old messages are dropped (or sent to DLQ).
 
-**Через CLI:**
+**Via CLI:**
 ```bash
-# Максимум 10000 сообщений в очереди
+# Maximum 10000 messages in a queue
 docker exec rabbitmq rabbitmqctl set_policy max-length-policy ".*" \
   '{"max-length": 10000}' \
   --apply-to queues
 ```
 
-**Совместить TTL и Max Length:**
+**Combine TTL and Max Length:**
 ```bash
 docker exec rabbitmq rabbitmqctl set_policy combined-policy ".*" \
   '{"message-ttl": 3600000, "max-length": 10000}' \
@@ -54,39 +54,31 @@ docker exec rabbitmq rabbitmqctl set_policy combined-policy ".*" \
 
 ## Dead Letter Queue (DLQ)
 
-Очередь куда падают сообщения которые не удалось обработать:
-- Сообщение отклонено consumer'ом (`basic.reject` / `basic.nack`)
-- Истёк TTL
-- Очередь достигла Max Length
+A queue where messages end up when they could not be processed:
+- Message rejected by consumer (`basic.reject` / `basic.nack`)
+- TTL expired
+- Queue reached Max Length
 
 ```
-Producer → [main-queue] → Consumer (упал/отклонил)
+Producer → [main-queue] → Consumer (crashed/rejected)
                 ↓
-          [main-queue.dlq]  ← сюда попадает сообщение
+          [main-queue.dlq]  ← message ends up here
 ```
 
-### Настройка DLQ
+### Setting up DLQ
 
-**Шаг 1 — Создать DLQ очередь:**
-```bash
-docker exec rabbitmq rabbitmqctl eval '
-  rabbit_amqqueue:declare(
-    rabbit_misc:r(<<"/">>, queue, <<"main-queue.dlq">>),
-    true, false, [], none, <<"cli">>
-  ).
-'
-```
+**Step 1 — Create the DLQ queue:**
 
-Или через UI: `Queues → Add queue → Name: main-queue.dlq`
+Via UI: `Queues → Add queue → Name: main-queue.dlq`
 
-**Шаг 2 — Применить политику DLQ на основную очередь:**
+**Step 2 — Apply DLQ policy to the main queue:**
 ```bash
 docker exec rabbitmq rabbitmqctl set_policy dlq-policy "^main-queue$" \
   '{"dead-letter-exchange": "", "dead-letter-routing-key": "main-queue.dlq"}' \
   --apply-to queues
 ```
 
-**Всё вместе — TTL + Max Length + DLQ:**
+**All together — TTL + Max Length + DLQ:**
 ```bash
 docker exec rabbitmq rabbitmqctl set_policy full-policy "^main-queue$" \
   '{
@@ -100,25 +92,25 @@ docker exec rabbitmq rabbitmqctl set_policy full-policy "^main-queue$" \
 
 ---
 
-## Паттерны применения
+## Pattern reference
 
-| Паттерн | К каким очередям применится |
+| Pattern | Which queues it applies to |
 |---|---|
-| `.*` | Все очереди |
-| `^bnpl-` | Очереди начинающиеся с `bnpl-` |
-| `^main-queue$` | Только очередь `main-queue` |
+| `.*` | All queues |
+| `^bnpl-` | Queues starting with `bnpl-` |
+| `^main-queue$` | Only the queue named `main-queue` |
 
 ---
 
-## Управление политиками
+## Managing policies
 
 ```bash
-# Список всех политик
+# List all policies
 docker exec rabbitmq rabbitmqctl list_policies
 
-# Список политик в конкретном vhost
+# List policies in a specific vhost
 docker exec rabbitmq rabbitmqctl list_policies -p /bakai-bnpl
 
-# Удалить политику
+# Delete a policy
 docker exec rabbitmq rabbitmqctl clear_policy ttl-policy
 ```

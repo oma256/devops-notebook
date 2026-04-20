@@ -1,52 +1,52 @@
 # RabbitMQ
 
-## Что такое
+## What is RabbitMQ
 
-**RabbitMQ** — это брокер сообщений (message broker). Его задача — принять сообщение от одного сервиса и доставить его другому.
-
----
-
-## Проблема которую решает
-
-Без брокера сервисы общаются напрямую:
-
-```
-Сервис А  →  HTTP запрос  →  Сервис Б
-```
-
-Если Сервис Б упал — запрос потерян. Если Сервис Б медленный — Сервис А ждёт.
-
-С брокером:
-
-```
-Сервис А  →  [RabbitMQ]  →  Сервис Б
-```
-
-Сервис А отправил и забыл. RabbitMQ хранит сообщение пока Сервис Б не будет готов.
+**RabbitMQ** is a message broker. Its job is to receive a message from one service and deliver it to another.
 
 ---
 
-## Ключевые понятия
+## Problem it solves
 
-| Понятие | Что это |
+Without a broker, services communicate directly:
+
+```
+Service A  →  HTTP request  →  Service B
+```
+
+If Service B is down — the request is lost. If Service B is slow — Service A waits.
+
+With a broker:
+
+```
+Service A  →  [RabbitMQ]  →  Service B
+```
+
+Service A sends and forgets. RabbitMQ holds the message until Service B is ready.
+
+---
+
+## Key concepts
+
+| Concept | What it is |
 |---|---|
-| **Producer** | Сервис который отправляет сообщения |
-| **Consumer** | Сервис который получает сообщения |
-| **Queue** | Очередь где хранятся сообщения |
-| **Exchange** | Роутер — решает в какую очередь отправить |
-| **Vhost** | Изолированное пространство (как БД в PostgreSQL) |
+| **Producer** | Service that sends messages |
+| **Consumer** | Service that receives messages |
+| **Queue** | Storage where messages wait |
+| **Exchange** | Router — decides which queue to send to |
+| **Vhost** | Isolated namespace (like a database in PostgreSQL) |
 
 ---
 
-## Когда использовать
+## When to use
 
-✅ **Подходит когда:**
-- Нужна асинхронная обработка (отправка email, SMS, уведомлений)
-- Один сервис производит задачи, несколько обрабатывают
-- Сервисы написаны на разных языках
-- Нужна гарантия доставки сообщения
+✅ **Good fit when:**
+- Async processing is needed (emails, SMS, notifications)
+- One service produces tasks, multiple services process them
+- Services are written in different languages
+- Message delivery guarantee is required
 
-❌ **Не подходит когда:**
-- Нужен ответ здесь и сейчас → используй HTTP/gRPC
-- Нужно хранить и переигрывать огромные потоки событий → используй Kafka
-- Простое общение двух сервисов без нагрузки → оверкил
+❌ **Not a good fit when:**
+- You need an immediate response → use HTTP/gRPC
+- You need to store and replay large event streams → use Kafka
+- Simple communication between two services with low load → overkill
